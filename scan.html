@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出席登録ページ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 110vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            padding-top: 40px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo { font-size: 8em; margin-bottom: 15px; }
+        h1 { color: #333; margin-bottom: 15px; font-size: 3.5em; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 2.1em; }
+
+        #reader {
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .status { padding: 15px; border-radius: 10px; margin: 15px 0; font-weight: 500; font-size: 1.6em; }
+        .status.loading { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; font-size: 1.2em; animation: pulse 0.5s; }
+        .status.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.info    { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+
+        .instruction { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: left; font-size: 1.6em; }
+        .instruction h3 { color: #495057; margin-bottom: 10px; font-size: 1.2em; }
+        .instruction ol { margin-left: 20px; color: #666; }
+        .instruction li { margin: 8px 0; line-height: 1.6; }
+
+        /* ズームスライダー */
+        #zoomSlider { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; flex: 1; min-width: 150px; height: 50px; }
+        #zoomSlider::-webkit-slider-runnable-track { height: 16px; background: linear-gradient(to right, #dee2e6, #adb5bd); border-radius: 8px; border: 2px solid #6c757d; }
+        #zoomSlider::-moz-range-track { height: 16px; background: linear-gradient(to right, #dee2e6, #adb5bd); border-radius: 8px; border: 2px solid #6c757d; }
+        #zoomSlider::-webkit-slider-thumb { -webkit-appearance: none; width: 40px; height: 40px; background: linear-gradient(135deg, #495057, #343a40); border-radius: 50%; border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,0.4); margin-top: -14px; }
+        #zoomSlider::-moz-range-thumb { width: 40px; height: 40px; background: linear-gradient(135deg, #495057, #343a40); border-radius: 50%; border: 3px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,0.4); }
+
+        /* クイズ関連 */
+        .quiz-container { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 15px; text-align: left; }
+        .quiz-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #dee2e6; }
+        .quiz-timer { background: #dc3545; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 1.6em; }
+        .quiz-timer.warning { animation: pulse-timer 0.5s infinite; }
+        @keyframes pulse-timer { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+        .quiz-progress { font-size: 1.5em; color: #666; font-weight: bold; }
+        .quiz-question { margin-bottom: 25px; }
+        .quiz-question-text { font-size: 1.8em; font-weight: bold; margin-bottom: 20px; color: #333; line-height: 1.4; }
+        .quiz-options { display: flex; flex-direction: column; gap: 12px; }
+        .quiz-option { padding: 18px 25px; background: white; border: 2px solid #dee2e6; border-radius: 10px; cursor: pointer; font-size: 1.5em; transition: all 0.2s; text-align: left; line-height: 1.3; }
+        .quiz-option:hover { border-color: #4285f4; background: #e8f4fd; }
+        .quiz-option.selected { border-color: #4285f4; background: #4285f4; color: white; }
+        .quiz-option-label { font-weight: bold; margin-right: 10px; }
+        .quiz-nav { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px; }
+        .quiz-nav button { flex: 1; padding: 18px; font-size: 1.4em; border: none; border-radius: 10px; cursor: pointer; font-weight: bold; }
+        .quiz-nav .btn-prev { background: #6c757d; color: white; }
+        .quiz-nav .btn-next { background: #4285f4; color: white; }
+        .quiz-nav .btn-submit { background: #28a745; color: white; }
+        .quiz-nav button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 結果表示 */
+        .quiz-result-item { background: white; border-radius: 10px; padding: 20px; margin-bottom: 20px; border: 1px solid #dee2e6; }
+        .quiz-result-question { font-weight: bold; margin-bottom: 20px; font-size: 1.6em; line-height: 1.4; }
+        .quiz-result-option { display: flex; align-items: center; margin-bottom: 12px; gap: 10px; font-size: 1.3em; }
+        .quiz-result-bar { flex: 1; height: 30px; background: #f5f5f5; border-radius: 5px; overflow: hidden; position: relative; }
+
+        .quiz-waiting { text-align: center; padding: 30px; }
+        .quiz-waiting-icon { font-size: 5em; margin-bottom: 20px; }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px; }
+            h1 { font-size: 2.9em; }
+            .logo { font-size: 6.4em; }
+            .subtitle { font-size: 1.8em; }
+            .instruction { font-size: 1.5em; }
+            .status { font-size: 1.5em; }
+            .quiz-question-text { font-size: 1.4em; }
+            .quiz-option { font-size: 1.3em; padding: 15px 18px; }
+            .quiz-result-question { font-size: 1.3em; }
+            .quiz-result-option { font-size: 1.1em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📱</div>
+        <h1 id="pageTitle">出席QRコードスキャン</h1>
+        <p class="subtitle" id="pageSubtitle">QRコードをスキャンしてください</p>
+
+        <div id="statusMessage"></div>
+
+        <!-- カメラ起動ボタン -->
+        <div id="startCameraContainer" style="margin: 30px 0;">
+            <button onclick="startScanner()" style="
+                font-size: 1.8em; padding: 25px 50px;
+                background: linear-gradient(135deg, #28a745, #1e7e34);
+                color: white; border: none; border-radius: 15px;
+                cursor: pointer; box-shadow: 0 4px 15px rgba(40,167,69,0.4); width: 100%;
+            ">📷 カメラを起動</button>
+        </div>
+
+        <div id="reader"></div>
+
+        <!-- カメラ切り替えボタン -->
+        <div id="cameraSwitchContainer" style="display: none; margin: 15px 0;">
+            <button onclick="switchCamera()" style="
+                background: linear-gradient(135deg, #6c757d, #495057); color: white;
+                border: none; padding: 12px 24px; border-radius: 25px; cursor: pointer;
+                font-size: 1.4em; font-weight: 600; box-shadow: 0 4px 15px rgba(108,117,125,0.3);
+            ">🔄 カメラ切り替え</button>
+        </div>
+
+        <!-- ズームコントロール -->
+        <div id="zoomControlContainer" style="display: none; margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <span style="font-size: 2em;">🔍</span>
+                <button onclick="changeZoom(-0.5)" style="width:70px;height:70px;font-size:2.5em;font-weight:bold;border:none;border-radius:50%;background:linear-gradient(135deg,#6c757d,#495057);color:white;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.2);">−</button>
+                <input type="range" id="zoomSlider" min="1" max="3" step="0.1" value="1"
+                    onchange="applyZoom(this.value)" oninput="applyZoom(this.value)">
+                <button onclick="changeZoom(0.5)" style="width:70px;height:70px;font-size:2.5em;font-weight:bold;border:none;border-radius:50%;background:linear-gradient(135deg,#6c757d,#495057);color:white;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.2);">+</button>
+                <span id="zoomValue" style="font-size:1.8em;font-weight:bold;min-width:60px;">1.0x</span>
+            </div>
+        </div>
+
+        <div class="instruction">
+            <h3>📋 使い方</h3>
+            <ol>
+                <li>カメラの使用を許可してください</li>
+                <li>QRコードにカメラを向けてください</li>
+                <li>自動的に読み取りが行われます</li>
+                <li>出席登録完了メッセージを確認してください</li>
+            </ol>
+        </div>
+
+        <div id="retryMessage" style="display: none; margin-bottom: 50px;">
+            <button onclick="fullReset()" style="
+                font-size: 1.5em; padding: 20px 40px; background: #007bff;
+                color: white; border: none; border-radius: 10px;
+                cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            ">🔄 再スキャン</button>
+            <p style="margin-top: 20px; font-size: 1.6em; color: #666; line-height: 1.6;">
+                ボタンが動作しない場合は<br>
+                Chromeのメニューから再読み込み<br>
+                Android: <strong>︙</strong> → <strong>↻</strong> ／ iPhone: <strong>…</strong> → <strong>↻</strong>
+            </p>
+        </div>
+
+        <!-- クイズ待機画面 -->
+        <div id="quizWaitingContainer" style="display: none;">
+            <div class="quiz-waiting">
+                <div class="quiz-waiting-icon">⏳</div>
+                <div style="font-size: 2.1em; color: #333; margin-bottom: 15px; font-weight: bold;">出席登録済みです</div>
+                <div style="font-size: 1.6em; color: #666; line-height: 1.6;">
+                    理解度チェックが開始されたら<br>再度QRコードをスキャンしてください
+                </div>
+                <div style="font-size: 1.1em; color: #856404; background: #fff3cd; padding: 10px 15px; border-radius: 8px; margin-top: 20px; line-height: 1.5;">
+                    ⚠️ QRカードは授業終了まで保管してください
+                </div>
+                <button onclick="fullReset()" style="margin-top: 25px; padding: 15px 40px; font-size: 1.3em; background: #007bff; color: white; border: none; border-radius: 8px; cursor: pointer;">
+                    再スキャン
+                </button>
+            </div>
+        </div>
+
+        <!-- クイズ表示画面 -->
+        <div id="quizContainer" style="display: none;">
+            <div class="quiz-container">
+                <div class="quiz-header">
+                    <div class="quiz-progress" id="quizProgress">問題 1/3</div>
+                    <div class="quiz-timer" id="quizTimer">残り 3:00</div>
+                </div>
+                <div id="quizQuestionArea"></div>
+                <div class="quiz-nav">
+                    <button class="btn-prev" onclick="prevQuestion()" id="quizPrevBtn">← 前へ</button>
+                    <button class="btn-next" onclick="nextQuestion()" id="quizNextBtn">次へ →</button>
+                    <button class="btn-submit" onclick="submitQuiz()" id="quizSubmitBtn" style="display: none;">回答を送信</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- クイズ回答済み画面 -->
+        <div id="quizAnsweredContainer" style="display: none;">
+            <div class="quiz-waiting">
+                <div class="quiz-waiting-icon">✅</div>
+                <div style="font-size: 2.1em; color: #155724; margin-bottom: 15px; font-weight: bold;">回答済みです</div>
+                <div style="font-size: 1.6em; color: #666;" id="quizAnsweredMessage">締切後に結果が表示されます</div>
+                <div id="quizAnsweredTimer" style="font-size: 2.5em; color: #dc3545; margin-top: 15px; font-weight: bold;"></div>
+            </div>
+        </div>
+
+        <!-- クイズ結果画面 -->
+        <div id="quizResultsContainer" style="display: none;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 2.5em; margin-bottom: 10px; font-weight: bold;">📊 理解度チェック結果</div>
+                <div id="quizResultsSummary" style="font-size: 1.6em; color: #666;"></div>
+            </div>
+            <div id="quizResultsContent"></div>
+        </div>
+    </div>
+
+    <!-- html5-qrcode（CDN）: GitHub PagesなのでCSP制限なし -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script>
+        // ==========================================
+        // URL パラメータ取得
+        // ==========================================
+        const _params = new URLSearchParams(window.location.search);
+        const gasUrl = _params.get('gas');
+        const sheetIdFromUrl = _params.get('sheet');
+
+        // 必須パラメータチェック
+        if (!gasUrl || !sheetIdFromUrl) {
+            document.body.innerHTML = `
+                <div style="background:white;border-radius:20px;padding:40px;max-width:600px;margin:40px auto;text-align:center;">
+                    <div style="font-size:3em;margin-bottom:20px;">⚠️</div>
+                    <div style="font-size:1.8em;color:#721c24;margin-bottom:15px;font-weight:bold;">URLが正しくありません</div>
+                    <div style="font-size:1.4em;color:#666;">
+                        管理者から配布されたURLを使用してください。<br>
+                        このページに直接アクセスしても動作しません。
+                    </div>
+                </div>`;
+        }
+
+        // ==========================================
+        // GAS API呼び出し（fetchでdoPostを叩く）
+        // google.script.runの代替
+        // ==========================================
+        function callGas(action, params) {
+            return fetch(gasUrl, {
+                method: 'POST',
+                // Content-Type未指定(text/plain) → CORS preflight不要
+                body: JSON.stringify({ action, sheetId: sheetIdFromUrl, ...(params || {}) })
+            }).then(function(response) {
+                if (!response.ok) throw new Error('HTTP error: ' + response.status);
+                return response.json();
+            });
+        }
+
+        // ==========================================
+        // カメラ関連変数
+        // ==========================================
+        let html5QrCode = null;
+        let isProcessing = false;
+        let currentFacingMode = 'environment';
+        let currentZoom = 1;
+        let zoomCapabilities = null;
+
+        // リトライ設定
+        const MAX_RETRY_COUNT = 3;
+        const RETRY_DELAY_BASE = 1000;
+        let currentQrData = null;
+        let checkRequestTime = null;
+
+        // クイズ関連変数
+        let quizData = null;
+        let quizAnswers = {};
+        let currentQuestionIndex = 0;
+        let quizTimerInterval = null;
+        let quizDeadline = null;
+        let quizLocalStartTime = null;
+        let quizTimeLimit = null;
+        let quizSessionTitle = null;
+        let quizSetNumber = null;
+        let myQuizAnswers = null;
+
+        // ==========================================
+        // UI ユーティリティ
+        // ==========================================
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.innerHTML = `<div class="status ${type}">${message.replace(/\n/g, '<br>')}</div>`;
+        }
+
+        function updatePageTitle(title, subtitle) {
+            document.getElementById('pageTitle').textContent = title;
+            document.getElementById('pageSubtitle').textContent = subtitle;
+        }
+
+        function hideAllContainers() {
+            document.getElementById('reader').style.display = 'none';
+            document.getElementById('cameraSwitchContainer').style.display = 'none';
+            document.getElementById('zoomControlContainer').style.display = 'none';
+            document.querySelector('.instruction').style.display = 'none';
+            document.getElementById('quizWaitingContainer').style.display = 'none';
+            document.getElementById('quizContainer').style.display = 'none';
+            document.getElementById('quizAnsweredContainer').style.display = 'none';
+            document.getElementById('quizResultsContainer').style.display = 'none';
+        }
+
+        // ==========================================
+        // カメラ起動・制御
+        // ==========================================
+        function startScanner() {
+            document.getElementById('startCameraContainer').style.display = 'none';
+            document.getElementById('reader').style.display = 'block';
+            document.querySelector('.instruction').style.display = 'block';
+            showStatus('カメラを起動しています...', 'loading');
+
+            html5QrCode = new Html5Qrcode('reader');
+
+            const config = {
+                fps: 10,
+                qrbox: function(w, h) { const s = Math.floor(Math.min(w, h) * 0.8); return { width: s, height: s }; },
+                aspectRatio: 1.0
+            };
+
+            html5QrCode.start({ facingMode: 'environment' }, config, onScanSuccess, onScanFailure)
+                .then(function() {
+                    currentFacingMode = 'environment';
+                    showStatus('QRコードをスキャンしてください', 'info');
+                    showCameraSwitchButton();
+                })
+                .catch(function(err) {
+                    console.log('リアカメラ失敗、フロントカメラ試行:', err);
+                    html5QrCode.start({ facingMode: 'user' }, config, onScanSuccess, onScanFailure)
+                        .then(function() {
+                            currentFacingMode = 'user';
+                            showStatus('QRコードをスキャンしてください<br><small style="color:#856404;">※フロントカメラが起動しています</small>', 'info');
+                            showCameraSwitchButton();
+                        })
+                        .catch(function(err2) {
+                            console.error('カメラ起動エラー:', err2);
+                            showStatus('カメラ起動エラー: ' + err2 + '<br>カメラの使用を許可してください', 'error');
+                            document.getElementById('retryMessage').style.display = 'block';
+                        });
+                });
+        }
+
+        function showCameraSwitchButton() {
+            document.getElementById('cameraSwitchContainer').style.display = 'block';
+            currentZoom = 1;
+            zoomCapabilities = null;
+            setTimeout(initZoomControl, 500);
+        }
+
+        function stopCamera(callback) {
+            if (html5QrCode) {
+                html5QrCode.stop()
+                    .then(function() { if (callback) callback(); })
+                    .catch(function(err) { console.error('カメラ停止エラー:', err); if (callback) callback(); });
+            } else {
+                if (callback) callback();
+            }
+        }
+
+        function switchCamera() {
+            if (!html5QrCode) return;
+            showStatus('カメラを切り替えています...', 'loading');
+            const config = {
+                fps: 10,
+                qrbox: function(w, h) { const s = Math.floor(Math.min(w, h) * 0.8); return { width: s, height: s }; },
+                aspectRatio: 1.0
+            };
+            html5QrCode.stop().then(function() {
+                const newMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+                html5QrCode.start({ facingMode: newMode }, config, onScanSuccess, onScanFailure)
+                    .then(function() {
+                        currentFacingMode = newMode;
+                        const name = newMode === 'environment' ? 'リアカメラ' : 'フロントカメラ';
+                        showStatus('QRコードをスキャンしてください<br><small style="color:#0c5460;">※' + name + 'に切り替えました</small>', 'info');
+                        currentZoom = 1; zoomCapabilities = null;
+                        setTimeout(initZoomControl, 500);
+                    })
+                    .catch(function(err) {
+                        console.error('切り替えエラー:', err);
+                        html5QrCode.start({ facingMode: currentFacingMode }, config, onScanSuccess, onScanFailure)
+                            .then(function() { showStatus('カメラ切り替えに失敗しました', 'error'); });
+                    });
+            });
+        }
+
+        function initZoomControl() {
+            if (!html5QrCode) return;
+            try {
+                const video = document.querySelector('#reader video');
+                if (!video || !video.srcObject) return;
+                const track = video.srcObject.getVideoTracks()[0];
+                if (!track) return;
+                const capabilities = track.getCapabilities();
+                if (capabilities.zoom) {
+                    zoomCapabilities = capabilities.zoom;
+                    const slider = document.getElementById('zoomSlider');
+                    slider.min = zoomCapabilities.min;
+                    slider.max = Math.min(zoomCapabilities.max, 3.0);
+                    slider.step = zoomCapabilities.step || 0.1;
+                    slider.value = zoomCapabilities.min;
+                    document.getElementById('zoomControlContainer').style.display = 'block';
+                }
+            } catch(e) {
+                console.log('ズーム初期化エラー:', e);
+            }
+        }
+
+        function applyZoom(value) {
+            if (!html5QrCode || !zoomCapabilities) return;
+            try {
+                const video = document.querySelector('#reader video');
+                if (!video || !video.srcObject) return;
+                const track = video.srcObject.getVideoTracks()[0];
+                if (!track) return;
+                const z = Math.max(zoomCapabilities.min, Math.min(zoomCapabilities.max, parseFloat(value)));
+                track.applyConstraints({ advanced: [{ zoom: z }] }).then(function() {
+                    currentZoom = z;
+                    document.getElementById('zoomSlider').value = z;
+                    document.getElementById('zoomValue').textContent = z.toFixed(1) + 'x';
+                });
+            } catch(e) {}
+        }
+
+        function changeZoom(delta) {
+            if (!zoomCapabilities) return;
+            applyZoom(currentZoom + delta);
+        }
+
+        function fullReset() {
+            hideAllContainers();
+            document.getElementById('retryMessage').style.display = 'none';
+            isProcessing = false;
+            currentQrData = null;
+            showStatus('リセット中...', 'loading');
+
+            const cleanup = function() {
+                html5QrCode = null;
+                const el = document.getElementById('reader');
+                if (el) el.innerHTML = '';
+                setTimeout(function() {
+                    document.getElementById('startCameraContainer').style.display = 'block';
+                    showStatus('ボタンをタップしてカメラを起動してください', 'info');
+                }, 300);
+            };
+
+            if (html5QrCode) {
+                html5QrCode.stop().then(cleanup).catch(cleanup);
+            } else {
+                cleanup();
+            }
+        }
+
+        // ==========================================
+        // QRスキャン処理
+        // ==========================================
+        function onScanSuccess(decodedText) {
+            if (isProcessing) return;
+            isProcessing = true;
+            console.log('QRスキャン成功:', decodedText);
+
+            stopCamera(function() { console.log('カメラ停止完了'); });
+            showStatus('QRコードを読み取りました。出席を記録中...', 'loading');
+
+            let qrData;
+            try {
+                if (decodedText.startsWith('{')) {
+                    qrData = JSON.parse(decodedText);
+                    if (!qrData.id) throw new Error('QRコードの形式が正しくありません');
+                    if (!qrData.sheet) qrData.sheet = sheetIdFromUrl;
+                } else {
+                    qrData = { id: decodedText.trim(), sheet: sheetIdFromUrl };
+                }
+                if (!qrData.sheet) throw new Error('スプレッドシートが指定されていません。管理者から正しいURLを取得してください。');
+            } catch (error) {
+                showStatus(error.message || '無効なQRコードです', 'error');
+                document.getElementById('retryMessage').style.display = 'block';
+                isProcessing = false;
+                return;
+            }
+
+            if (qrData.id === 'TEST-CHECK') {
+                callGas('logScanTest', {})
+                    .catch(function(e) { console.error('ログ記録エラー:', e); })
+                    .finally(showTestSuccessPage);
+                return;
+            }
+
+            currentQrData = qrData;
+            sendAttendanceRequest(0);
+        }
+
+        function onScanFailure() { /* 頻発するので無視 */ }
+
+        // ==========================================
+        // 出席登録・クイズ処理
+        // （google.script.run → callGas に置き換え済み）
+        // ==========================================
+        function sendAttendanceRequest(retryCount) {
+            if (!currentQrData) return;
+            console.log('出席確認リクエスト (試行:' + (retryCount + 1) + ')');
+            checkRequestTime = Date.now();
+
+            callGas('checkAttendanceAndQuiz', { id: currentQrData.id })
+                .then(handleAttendanceAndQuizResult)
+                .catch(function(error) { handleErrorWithRetry(error, retryCount); });
+        }
+
+        function handleAttendanceAndQuizResult(result) {
+            isProcessing = false;
+            if (!result.success) {
+                showStatus('❌ ' + result.message, 'error');
+                document.getElementById('retryMessage').style.display = 'block';
+                currentQrData = null;
+                return;
+            }
+            quizSessionTitle = result.sessionTitle;
+            if (!result.isAttendanceRegistered) {
+                registerAttendance(result);
+            } else {
+                handleQuizState(result);
+            }
+        }
+
+        function registerAttendance(checkResult) {
+            showStatus('出席を記録中...', 'loading');
+            callGas('recordAttendanceFromScan', { id: currentQrData.id })
+                .then(function(result) {
+                    if (result.success) {
+                        const displayName = result.studentId || result.userName;
+                        if (checkResult.activeSet) {
+                            showStatus(`✅ 出席登録完了<br>
+                                <div style="font-size:1.4em;color:#1565c0;margin:10px 0;">${result.sessionTitle}</div>
+                                <div style="font-size:1.6em;color:#1565c0;margin:10px 0;">受付番号: <strong style="font-size:1.2em;">${result.number}</strong></div>
+                                <strong style="font-size:2.1em;">${displayName}</strong>`, 'success');
+                            setTimeout(function() { startQuiz(checkResult.activeSet, checkResult.serverTime); }, 1500);
+                        } else {
+                            showStatus(`✅ 出席登録完了<br>
+                                <div style="font-size:1.4em;color:#1565c0;margin:10px 0;">${result.sessionTitle}</div>
+                                <div style="font-size:1.6em;color:#1565c0;margin:10px 0;">受付番号: <strong style="font-size:1.2em;">${result.number}</strong></div>
+                                <strong style="font-size:2.1em;">${displayName}</strong>`, 'success');
+                            showQuizWaitingScreen();
+                        }
+                    } else {
+                        handleAttendanceResult(result);
+                    }
+                })
+                .catch(handleError);
+        }
+
+        function handleQuizState(result) {
+            currentQrData = null;
+            if (result.identifierMismatch) {
+                showStatus(`<div style="font-size:1.3em;">⚠️ 出席登録時と異なるQRコードです</div>
+                    <div style="font-size:1.4em;color:#c62828;margin:15px 0;">
+                        出席登録済みの整理番号: <strong style="font-size:1.3em;">No.${result.attendanceNumber}</strong>
+                    </div>
+                    <div style="font-size:1.1em;color:#c62828;">上記の整理番号のQRコードをスキャンしてください</div>`, 'error');
+                document.getElementById('retryMessage').style.display = 'block';
+                return;
+            }
+
+            if (result.activeSet) {
+                quizDeadline = new Date(result.activeSet.deadline);
+                quizTimeLimit = result.activeSet.timeLimit || 180;
+                if (result.serverTime) {
+                    const serverNow = new Date(result.serverTime);
+                    const elapsed = checkRequestTime ? (Date.now() - checkRequestTime) : 0;
+                    const adjusted = new Date(serverNow.getTime() + elapsed);
+                    const serverRemaining = Math.floor((quizDeadline - adjusted) / 1000);
+                    quizLocalStartTime = Date.now() - (quizTimeLimit - serverRemaining) * 1000;
+                } else {
+                    quizLocalStartTime = Date.now();
+                }
+                if (result.hasAnswered) {
+                    showQuizAnsweredScreen(result.activeSet.deadline);
+                } else {
+                    showStatus('✅ 出席登録済み', 'success');
+                    setTimeout(function() { startQuiz(result.activeSet, result.serverTime); }, 1000);
+                }
+            } else {
+                checkForResults(result.sessionTitle);
+            }
+        }
+
+        function checkForResults(sessionTitle) {
+            callGas('getEndedQuestionSet', { sessionTitle })
+                .then(function(result) {
+                    if (result.success && result.endedSet) {
+                        showQuizResults(sessionTitle, result.endedSet.setNumber);
+                    } else {
+                        showStatus('✅ 出席登録済み', 'success');
+                        showQuizWaitingScreen();
+                    }
+                })
+                .catch(function() {
+                    showStatus('✅ 出席登録済み', 'success');
+                    showQuizWaitingScreen();
+                });
+        }
+
+        function showTestSuccessPage() {
+            document.querySelector('.instruction').style.display = 'none';
+            document.getElementById('cameraSwitchContainer').style.display = 'none';
+            document.getElementById('statusMessage').innerHTML = `
+                <div style="background:#d4edda;border:2px solid #28a745;border-radius:15px;padding:30px;margin-bottom:20px;">
+                    <div style="font-size:2.5em;margin-bottom:15px;">✅ テスト成功</div>
+                    <div style="font-size:1.4em;color:#155724;">QRコードの読み取りが正常に動作しています</div>
+                </div>
+                <div style="background:#fff3cd;border:2px solid #ffc107;border-radius:15px;padding:25px;margin-bottom:20px;text-align:left;">
+                    <div style="font-size:1.8em;font-weight:bold;color:#856404;margin-bottom:15px;">📋 授業前の準備</div>
+                    <ul style="font-size:1.4em;color:#856404;line-height:1.8;margin:0;padding-left:25px;">
+                        <li>GWSEにログインした状態でこのページを開いてください</li>
+                        <li>教室に入ったらQRコードを直ちにスキャンできるよう準備してください</li>
+                    </ul>
+                </div>
+                <div style="background:#f8d7da;border:2px solid #dc3545;border-radius:15px;padding:25px;text-align:left;">
+                    <div style="font-size:1.8em;font-weight:bold;color:#721c24;margin-bottom:15px;">⚠️ 重要</div>
+                    <ul style="font-size:1.4em;color:#721c24;line-height:1.8;margin:0;padding-left:25px;">
+                        <li>自分のスマホと教室の画面、<strong>両方に出席登録メッセージが表示されてから</strong>次の学生に交代してください</li>
+                    </ul>
+                </div>
+                <div style="margin-top:25px;font-size:1.2em;color:#666;">このページを閉じて構いません</div>`;
+        }
+
+        function handleAttendanceResult(result) {
+            isProcessing = false;
+            currentQrData = null;
+            if (result.success) {
+                const displayName = result.studentId || result.userName;
+                showStatus(`✅ 出席登録完了<br>
+                    <div style="font-size:1.4em;color:#1565c0;margin:10px 0;">${result.sessionTitle}</div>
+                    <div style="font-size:1.6em;color:#1565c0;margin:10px 0;">受付番号: <strong style="font-size:1.2em;">${result.number}</strong></div>
+                    <strong style="font-size:2.1em;">${displayName}</strong><br>
+                    <div style="font-size:0.8em;color:#2e7d32;margin-top:15px;">このページを閉じて構いません</div>
+                    <div style="font-size:0.9em;color:#856404;background:#fff3cd;padding:8px 12px;border-radius:6px;margin-top:10px;line-height:1.4;">⚠️ QRカードは授業終了まで保管してください</div>`, 'success');
+            } else {
+                if (result.showRetry === false) {
+                    showStatus('❌ ' + result.message + '<br><div style="font-size:0.8em;color:#721c24;margin-top:15px;">このページを閉じてください</div>', 'error');
+                } else {
+                    showStatus('❌ ' + result.message, 'error');
+                    document.getElementById('retryMessage').style.display = 'block';
+                }
+            }
+        }
+
+        function handleErrorWithRetry(error, retryCount) {
+            console.error('通信エラー (試行:' + (retryCount + 1) + '):', error);
+            if (retryCount < MAX_RETRY_COUNT) {
+                const delay = RETRY_DELAY_BASE + Math.random() * 1000;
+                setTimeout(function() { sendAttendanceRequest(retryCount + 1); }, delay);
+            } else {
+                isProcessing = false;
+                currentQrData = null;
+                showStatus('登録できませんでした。再度スキャンしてください。', 'error');
+                document.getElementById('retryMessage').style.display = 'block';
+            }
+        }
+
+        function handleError(error) {
+            isProcessing = false;
+            console.error('通信エラー:', error);
+            showStatus('通信エラー: ' + error, 'error');
+            document.getElementById('retryMessage').style.display = 'block';
+        }
+
+        // ==========================================
+        // クイズ関連（color_quiz版と同一ロジック）
+        // ==========================================
+        function showQuizWaitingScreen() {
+            hideAllContainers();
+            updatePageTitle('出席登録完了', '理解度チェック待機中');
+            document.getElementById('quizWaitingContainer').style.display = 'block';
+        }
+
+        function startQuiz(activeSet, serverTime) {
+            quizSetNumber = activeSet.setNumber;
+            quizDeadline = new Date(activeSet.deadline);
+            quizTimeLimit = activeSet.timeLimit || 180;
+            if (serverTime) {
+                const serverNow = new Date(serverTime);
+                const elapsed = checkRequestTime ? (Date.now() - checkRequestTime) : 0;
+                const adjusted = new Date(serverNow.getTime() + elapsed);
+                const serverRemaining = Math.floor((quizDeadline - adjusted) / 1000);
+                quizLocalStartTime = Date.now() - (quizTimeLimit - serverRemaining) * 1000;
+            } else {
+                quizLocalStartTime = Date.now();
+            }
+            quizAnswers = {};
+            currentQuestionIndex = 0;
+
+            callGas('getQuestions', { sessionTitle: quizSessionTitle, setNumber: activeSet.setNumber })
+                .then(function(result) {
+                    if (result.success && result.questions.length > 0) {
+                        quizData = result.questions;
+                        displayQuiz();
+                    } else {
+                        showStatus('問題の取得に失敗しました', 'error');
+                    }
+                })
+                .catch(function(error) {
+                    console.error('問題取得エラー:', error);
+                    showStatus('問題の取得に失敗しました', 'error');
+                });
+        }
+
+        function displayQuiz() {
+            hideAllContainers();
+            updatePageTitle('理解度チェック', '問題に回答してください');
+            document.getElementById('statusMessage').innerHTML = '';
+            document.getElementById('quizContainer').style.display = 'block';
+            startQuizTimer();
+            displayQuestion(0);
+        }
+
+        function displayQuestion(index) {
+            if (!quizData || index >= quizData.length) return;
+            currentQuestionIndex = index;
+            const q = quizData[index];
+            document.getElementById('quizProgress').textContent = '問題 ' + (index + 1) + '/' + quizData.length;
+
+            let optionsHtml = '';
+            ['A', 'B', 'C', 'D'].forEach(function(opt) {
+                const text = q['option' + opt];
+                if (text) {
+                    const sel = quizAnswers[q.questionNumber] === opt ? 'selected' : '';
+                    optionsHtml += `<div class="quiz-option ${sel}" onclick="selectOption(${q.questionNumber},'${opt}')">
+                        <span class="quiz-option-label">${opt}.</span>${text}</div>`;
+                }
+            });
+            document.getElementById('quizQuestionArea').innerHTML =
+                `<div class="quiz-question"><div class="quiz-question-text">${q.text}</div><div class="quiz-options">${optionsHtml}</div></div>`;
+            updateNavButtons();
+        }
+
+        function selectOption(questionNumber, option) {
+            quizAnswers[questionNumber] = option;
+            document.querySelectorAll('.quiz-option').forEach(function(el) { el.classList.remove('selected'); });
+            event.target.closest('.quiz-option').classList.add('selected');
+            updateNavButtons();
+        }
+
+        function updateNavButtons() {
+            const isFirst = currentQuestionIndex === 0;
+            const isLast = currentQuestionIndex === quizData.length - 1;
+            document.getElementById('quizPrevBtn').style.display = isFirst ? 'none' : 'block';
+            document.getElementById('quizNextBtn').style.display = isLast ? 'none' : 'block';
+            const submitBtn = document.getElementById('quizSubmitBtn');
+            submitBtn.style.display = isLast ? 'block' : 'none';
+            submitBtn.disabled = !quizData.every(function(q) { return quizAnswers[q.questionNumber]; });
+        }
+
+        function prevQuestion() { if (currentQuestionIndex > 0) displayQuestion(currentQuestionIndex - 1); }
+        function nextQuestion() { if (currentQuestionIndex < quizData.length - 1) displayQuestion(currentQuestionIndex + 1); }
+
+        function startQuizTimer() {
+            if (quizTimerInterval) clearInterval(quizTimerInterval);
+            quizTimerInterval = setInterval(updateTimer, 1000);
+            updateTimer();
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - quizLocalStartTime) / 1000);
+            const remaining = Math.max(0, quizTimeLimit - elapsed);
+            const timerEl = document.getElementById('quizTimer');
+            timerEl.textContent = '残り ' + Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
+            if (remaining <= 30) timerEl.classList.add('warning');
+            else timerEl.classList.remove('warning');
+            if (remaining <= 0) { clearInterval(quizTimerInterval); autoSubmitQuiz(); }
+        }
+
+        function autoSubmitQuiz() {
+            showStatus('時間切れです。回答を送信しています...', 'loading');
+            submitQuizAnswers();
+        }
+
+        function submitQuiz() {
+            if (!confirm('回答を送信しますか？')) return;
+            showStatus('回答を送信しています...', 'loading');
+            submitQuizAnswers();
+        }
+
+        function submitQuizAnswers() {
+            if (quizTimerInterval) clearInterval(quizTimerInterval);
+            const submitBtn = document.getElementById('quizSubmitBtn');
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '送信中...'; }
+            showStatus('送信中...', 'loading');
+
+            const congestionTimer = setTimeout(function() {
+                showStatus('混雑しています。しばらくお待ちください...', 'loading');
+            }, 5000);
+
+            const answers = Object.entries(quizAnswers).map(function([qNum, answer]) {
+                return { questionNumber: parseInt(qNum), answer };
+            });
+
+            callGas('submitQuizAnswers', { sessionTitle: quizSessionTitle, setNumber: quizSetNumber, answers })
+                .then(function(result) {
+                    clearTimeout(congestionTimer);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '回答を送信'; }
+                    if (result.success) {
+                        showStatus('✅ 回答を送信しました', 'success');
+                        quizDeadline = new Date(result.deadline);
+                        myQuizAnswers = {};
+                        if (result.results) {
+                            result.results.forEach(function(r) {
+                                myQuizAnswers[r.questionNumber] = { answer: r.answer, isCorrect: r.isCorrect };
+                            });
+                        }
+                        showQuizAnsweredScreen(result.deadline);
+                    } else {
+                        showStatus('❌ ' + result.message, 'error');
+                    }
+                })
+                .catch(function(error) {
+                    clearTimeout(congestionTimer);
+                    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '回答を送信'; }
+                    console.error('回答送信エラー:', error);
+                    showStatus('回答の送信に失敗しました', 'error');
+                });
+        }
+
+        function showQuizAnsweredScreen(deadline) {
+            hideAllContainers();
+            updatePageTitle('回答完了', '結果表示をお待ちください');
+            document.getElementById('statusMessage').innerHTML = '';
+            document.getElementById('quizAnsweredContainer').style.display = 'block';
+            quizDeadline = new Date(deadline);
+            if (quizTimerInterval) clearInterval(quizTimerInterval);
+            quizTimerInterval = setInterval(updateAnsweredTimer, 1000);
+            updateAnsweredTimer();
+        }
+
+        let lastStatusCheck = 0;
+        function updateAnsweredTimer() {
+            const elapsed = Math.floor((Date.now() - quizLocalStartTime) / 1000);
+            const remaining = Math.max(0, quizTimeLimit - elapsed);
+            document.getElementById('quizAnsweredTimer').textContent =
+                '残り ' + Math.floor(remaining / 60) + ':' + String(remaining % 60).padStart(2, '0');
+            if (remaining <= 0) {
+                clearInterval(quizTimerInterval);
+                showQuizResults(quizSessionTitle, quizSetNumber);
+                return;
+            }
+            const now = Date.now();
+            if (now - lastStatusCheck > 10000) {
+                lastStatusCheck = now;
+                callGas('checkQuizStatus', { sessionTitle: quizSessionTitle })
+                    .then(function(result) {
+                        if (!result.active) {
+                            clearInterval(quizTimerInterval);
+                            showQuizResults(quizSessionTitle, quizSetNumber);
+                        }
+                    })
+                    .catch(function(e) { console.error('ステータス確認エラー:', e); });
+            }
+        }
+
+        function showQuizResults(sessionTitle, setNumber) {
+            hideAllContainers();
+            updatePageTitle('理解度チェック結果', '回答状況を確認できます');
+            document.getElementById('statusMessage').innerHTML = '';
+            document.getElementById('quizResultsContainer').style.display = 'block';
+            document.getElementById('quizResultsContent').innerHTML = '<p style="text-align:center;font-size:1.4em;">結果を読み込み中...</p>';
+
+            callGas('getQuizResults', { sessionTitle, setNumber, skipUserAnswers: !!myQuizAnswers })
+                .then(function(result) {
+                    if (result.success) {
+                        if (myQuizAnswers) {
+                            result.results.forEach(function(r) {
+                                r.userAnswer = myQuizAnswers[r.questionNumber] || null;
+                            });
+                        }
+                        displayQuizResults(result.results, result.totalRespondents);
+                    } else {
+                        document.getElementById('quizResultsContent').innerHTML =
+                            '<p style="color:red;text-align:center;">結果の取得に失敗しました: ' + result.message + '</p>';
+                    }
+                })
+                .catch(function(error) {
+                    console.error('結果取得エラー:', error);
+                    document.getElementById('quizResultsContent').innerHTML =
+                        '<p style="color:red;text-align:center;">結果の取得に失敗しました</p>';
+                });
+        }
+
+        function displayQuizResults(results, totalRespondents) {
+            document.getElementById('quizResultsSummary').textContent = '回答者数: ' + totalRespondents + '名';
+            let html = '';
+            results.forEach(function(q) {
+                const hasCorrect = q.correctAnswer && q.correctAnswer !== '';
+                const userAnswer = q.userAnswer ? q.userAnswer.answer : null;
+                let optionsHtml = '';
+                ['A', 'B', 'C', 'D'].forEach(function(opt) {
+                    const text = q['option' + opt];
+                    if (!text) return;
+                    const stats = q.stats[opt];
+                    const isCorrect = hasCorrect && q.correctAnswer === opt;
+                    const isUser = userAnswer === opt;
+                    const barColor = !hasCorrect ? '#4285f4' : (isCorrect ? '#81c784' : '#d0d0d0');
+                    const optStyle = isUser ? 'font-weight:bold;border:3px solid #333;background:#fff3cd;' : '';
+                    const labelStyle = isUser ? 'font-weight:900;' : 'font-weight:bold;';
+                    const correctMark = (hasCorrect && isCorrect) ? ' ✓' : '';
+                    const textColor = isCorrect ? '#28a745' : 'inherit';
+                    optionsHtml += `<div class="quiz-result-option" style="${optStyle}padding:5px;border-radius:5px;">
+                        <span style="width:35px;${labelStyle}flex-shrink:0;color:${textColor};">${opt}.${correctMark}</span>
+                        <div class="quiz-result-bar">
+                            <div style="height:100%;width:${stats.percent}%;background:${barColor};transition:width 0.3s;"></div>
+                            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:0.9em;z-index:1;color:#333;">${text}</span>
+                        </div>
+                        <span style="width:55px;text-align:right;flex-shrink:0;font-weight:bold;color:${textColor};">${stats.percent}%</span>
+                    </div>`;
+                });
+
+                let userAnswerHtml = '';
+                if (q.userAnswer) {
+                    if (!hasCorrect) {
+                        userAnswerHtml = `<div style="margin-top:15px;padding:12px;background:#e8f4fd;border-radius:5px;font-size:1.2em;">あなたの回答: <strong>${q.userAnswer.answer}</strong></div>`;
+                    } else {
+                        const ok = q.userAnswer.isCorrect;
+                        userAnswerHtml = `<div style="margin-top:15px;padding:12px;background:${ok?'#d4edda':'#f8d7da'};color:${ok?'#155724':'#721c24'};border-radius:5px;font-size:1.2em;">
+                            あなたの回答: <strong>${q.userAnswer.answer}</strong> (${ok?'正解！':'不正解'})
+                            ${!ok?'<br>正解: <strong>'+q.correctAnswer+'</strong>':''}
+                        </div>`;
+                    }
+                }
+
+                html += `<div class="quiz-result-item">
+                    <div class="quiz-result-question">【問題${q.questionNumber}】${q.text}</div>
+                    ${optionsHtml}${userAnswerHtml}
+                </div>`;
+            });
+            document.getElementById('quizResultsContent').innerHTML = html;
+        }
+
+        // ==========================================
+        // 初期化
+        // ==========================================
+        window.onload = function() {
+            if (gasUrl && sheetIdFromUrl) {
+                showStatus('ボタンをタップしてカメラを起動してください', 'info');
+            }
+        };
+
+        window.addEventListener('beforeunload', function() {
+            if (html5QrCode) html5QrCode.stop().catch(function() {});
+        });
+
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('グローバルエラー:', message, source, lineno, colno, error);
+            return false;
+        };
+    </script>
+</body>
+</html>
