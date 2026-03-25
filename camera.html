@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出席QRスキャン</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            padding-top: 40px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .logo { font-size: 6em; margin-bottom: 15px; }
+        h1 { color: #333; margin-bottom: 10px; font-size: 2.8em; }
+        .subtitle { color: #666; margin-bottom: 25px; font-size: 1.8em; }
+
+        #reader {
+            width: 100%;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+
+        .status { padding: 15px; border-radius: 10px; margin: 15px 0; font-weight: 500; font-size: 1.6em; }
+        .status.loading { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        .btn-start {
+            font-size: 1.8em; padding: 25px 50px;
+            background: linear-gradient(135deg, #28a745, #1e7e34);
+            color: white; border: none; border-radius: 15px;
+            cursor: pointer; box-shadow: 0 4px 15px rgba(40,167,69,0.4);
+            width: 100%; margin: 15px 0;
+        }
+
+        .btn-switch {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white; border: none; padding: 12px 24px;
+            border-radius: 25px; cursor: pointer;
+            font-size: 1.4em; font-weight: 600;
+            box-shadow: 0 4px 15px rgba(108,117,125,0.3);
+            margin: 10px 0;
+        }
+
+        /* ズームスライダー */
+        #zoomControlContainer {
+            margin: 15px 0; padding: 15px;
+            background: #f8f9fa; border-radius: 12px;
+        }
+        #zoomSlider {
+            -webkit-appearance: none; appearance: none;
+            background: transparent; cursor: pointer;
+            flex: 1; min-width: 150px; height: 50px;
+        }
+        #zoomSlider::-webkit-slider-runnable-track {
+            height: 16px;
+            background: linear-gradient(to right, #dee2e6, #adb5bd);
+            border-radius: 8px; border: 2px solid #6c757d;
+        }
+        #zoomSlider::-moz-range-track {
+            height: 16px;
+            background: linear-gradient(to right, #dee2e6, #adb5bd);
+            border-radius: 8px; border: 2px solid #6c757d;
+        }
+        #zoomSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #495057, #343a40);
+            border-radius: 50%; border: 3px solid #fff;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4); margin-top: -14px;
+        }
+        #zoomSlider::-moz-range-thumb {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #495057, #343a40);
+            border-radius: 50%; border: 3px solid #fff;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+        }
+
+        .instruction {
+            background: #f8f9fa; border: 2px solid #dee2e6;
+            border-radius: 10px; padding: 20px; margin: 20px 0;
+            text-align: left; font-size: 1.5em;
+        }
+        .instruction h3 { color: #495057; margin-bottom: 10px; }
+        .instruction ol { margin-left: 20px; color: #666; }
+        .instruction li { margin: 6px 0; line-height: 1.5; }
+
+        @media (max-width: 480px) {
+            .container { padding: 20px; }
+            h1 { font-size: 2.2em; }
+            .logo { font-size: 4.5em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">📷</div>
+        <h1>出席QRスキャン</h1>
+        <p class="subtitle">QRコードをカメラに向けてください</p>
+
+        <div id="statusMessage"></div>
+
+        <div id="startCameraContainer" style="margin: 20px 0;">
+            <button class="btn-start" onclick="startScanner()">📷 カメラを起動</button>
+        </div>
+
+        <div id="reader"></div>
+
+        <div id="cameraSwitchContainer" style="display: none; margin: 10px 0;">
+            <button class="btn-switch" onclick="switchCamera()">🔄 カメラ切り替え</button>
+        </div>
+
+        <div id="zoomControlContainer" style="display: none;">
+            <div style="display: flex; align-items: center; justify-content: center; gap: 15px;">
+                <span style="font-size: 1.8em;">🔍</span>
+                <button onclick="changeZoom(-0.5)"
+                    style="width:60px;height:60px;font-size:2em;font-weight:bold;border:none;border-radius:50%;background:linear-gradient(135deg,#6c757d,#495057);color:white;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.2);">−</button>
+                <input type="range" id="zoomSlider" min="1" max="3" step="0.1" value="1"
+                    onchange="applyZoom(this.value)" oninput="applyZoom(this.value)">
+                <button onclick="changeZoom(0.5)"
+                    style="width:60px;height:60px;font-size:2em;font-weight:bold;border:none;border-radius:50%;background:linear-gradient(135deg,#6c757d,#495057);color:white;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,0.2);">+</button>
+                <span id="zoomValue" style="font-size:1.6em;font-weight:bold;min-width:55px;">1.0x</span>
+            </div>
+        </div>
+
+        <div class="instruction">
+            <h3>📋 使い方</h3>
+            <ol>
+                <li>「カメラを起動」をタップ</li>
+                <li>カメラの使用を許可</li>
+                <li>QRコードにカメラを向ける</li>
+                <li>自動で読み取り・出席登録へ進みます</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- html5-qrcode（CDN）: GitHub PagesなのでCSP制限なし -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+    <script>
+        // ==========================================
+        // URLパラメータ取得
+        // ==========================================
+        const _params = new URLSearchParams(window.location.search);
+        const gasUrl    = _params.get('gas');
+        const sheetId   = _params.get('sheet');
+
+        // 必須パラメータチェック
+        if (!gasUrl || !sheetId) {
+            document.querySelector('.container').innerHTML = `
+                <div style="font-size:3em;margin-bottom:20px;">⚠️</div>
+                <div style="font-size:1.8em;color:#721c24;margin-bottom:15px;font-weight:bold;">URLが正しくありません</div>
+                <div style="font-size:1.4em;color:#666;line-height:1.6;">
+                    管理者から配布されたURLを使用してください。<br>
+                    このページに直接アクセスしても動作しません。
+                </div>`;
+        }
+
+        // ==========================================
+        // カメラ関連変数
+        // ==========================================
+        let html5QrCode = null;
+        let isProcessing = false;
+        let currentFacingMode = 'environment';
+        let currentZoom = 1;
+        let zoomCapabilities = null;
+
+        // ==========================================
+        // ステータス表示
+        // ==========================================
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMessage');
+            el.innerHTML = `<div class="status ${type}">${msg}</div>`;
+        }
+
+        // ==========================================
+        // スキャナー起動
+        // ==========================================
+        function startScanner() {
+            document.getElementById('startCameraContainer').style.display = 'none';
+            showStatus('カメラを起動中...', 'loading');
+
+            html5QrCode = new Html5Qrcode('reader');
+
+            Html5Qrcode.getCameras().then(function(cameras) {
+                if (!cameras || cameras.length === 0) {
+                    showStatus('カメラが見つかりませんでした', 'error');
+                    document.getElementById('startCameraContainer').style.display = 'block';
+                    return;
+                }
+
+                // 背面カメラ優先
+                let cameraId = cameras[cameras.length - 1].id;
+                for (let c of cameras) {
+                    if (c.label && c.label.toLowerCase().includes('back')) {
+                        cameraId = c.id; break;
+                    }
+                }
+
+                const config = {
+                    fps: 10,
+                    qrbox: function(w, h) {
+                        const s = Math.min(w, h) * 0.7;
+                        return { width: s, height: s };
+                    },
+                    aspectRatio: 1.0,
+                    videoConstraints: {
+                        deviceId: cameraId,
+                        facingMode: currentFacingMode
+                    }
+                };
+
+                html5QrCode.start(
+                    { facingMode: currentFacingMode },
+                    config,
+                    onQrSuccess,
+                    function() {} // スキャン中のエラーは無視
+                ).then(function() {
+                    showStatus('QRコードをカメラに向けてください', 'loading');
+                    document.getElementById('cameraSwitchContainer').style.display = 'block';
+                    tryGetZoomCapabilities();
+                }).catch(function(err) {
+                    showStatus('カメラの起動に失敗しました: ' + err, 'error');
+                    document.getElementById('startCameraContainer').style.display = 'block';
+                });
+            }).catch(function(err) {
+                showStatus('カメラへのアクセスが拒否されました', 'error');
+                document.getElementById('startCameraContainer').style.display = 'block';
+            });
+        }
+
+        // ==========================================
+        // QRコード読み取り成功 → GASへ遷移
+        // ==========================================
+        function onQrSuccess(decodedText) {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            // カメラ停止
+            if (html5QrCode) {
+                html5QrCode.stop().catch(function() {});
+            }
+            document.getElementById('cameraSwitchContainer').style.display = 'none';
+            document.getElementById('zoomControlContainer').style.display = 'none';
+
+            showStatus('QRコードを読み取りました。出席登録ページへ移動します...', 'success');
+
+            // GASのdoGet()へ遷移
+            // GAS側でscan=1を受け取り、scan_result.htmlを返す
+            const redirectUrl = gasUrl
+                + (gasUrl.includes('?') ? '&' : '?')
+                + 'scan=1'
+                + '&id='    + encodeURIComponent(decodedText)
+                + '&sheet=' + encodeURIComponent(sheetId);
+
+            setTimeout(function() {
+                window.location.href = redirectUrl;
+            }, 800);
+        }
+
+        // ==========================================
+        // カメラ切り替え
+        // ==========================================
+        function switchCamera() {
+            if (!html5QrCode) return;
+            currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+            currentZoom = 1;
+            document.getElementById('zoomControlContainer').style.display = 'none';
+
+            html5QrCode.stop().then(function() {
+                const config = {
+                    fps: 10,
+                    qrbox: function(w, h) {
+                        const s = Math.min(w, h) * 0.7;
+                        return { width: s, height: s };
+                    },
+                    aspectRatio: 1.0
+                };
+                return html5QrCode.start(
+                    { facingMode: currentFacingMode },
+                    config,
+                    onQrSuccess,
+                    function() {}
+                );
+            }).then(function() {
+                tryGetZoomCapabilities();
+            }).catch(function(err) {
+                showStatus('カメラ切り替えに失敗: ' + err, 'error');
+            });
+        }
+
+        // ==========================================
+        // ズーム機能
+        // ==========================================
+        function tryGetZoomCapabilities() {
+            try {
+                const videoEl = document.querySelector('#reader video');
+                if (!videoEl) return;
+                const track = videoEl.srcObject && videoEl.srcObject.getVideoTracks()[0];
+                if (!track) return;
+                const caps = track.getCapabilities ? track.getCapabilities() : null;
+                if (caps && caps.zoom) {
+                    zoomCapabilities = caps.zoom;
+                    const slider = document.getElementById('zoomSlider');
+                    slider.min   = caps.zoom.min;
+                    slider.max   = caps.zoom.max;
+                    slider.step  = caps.zoom.step || 0.1;
+                    slider.value = 1;
+                    document.getElementById('zoomControlContainer').style.display = 'block';
+                }
+            } catch(e) {}
+        }
+
+        function applyZoom(val) {
+            currentZoom = parseFloat(val);
+            document.getElementById('zoomValue').textContent = currentZoom.toFixed(1) + 'x';
+            try {
+                const videoEl = document.querySelector('#reader video');
+                if (!videoEl) return;
+                const track = videoEl.srcObject && videoEl.srcObject.getVideoTracks()[0];
+                if (track && track.applyConstraints) {
+                    track.applyConstraints({ advanced: [{ zoom: currentZoom }] }).catch(function() {});
+                }
+            } catch(e) {}
+        }
+
+        function changeZoom(delta) {
+            const slider = document.getElementById('zoomSlider');
+            const newVal = Math.min(
+                parseFloat(slider.max),
+                Math.max(parseFloat(slider.min), currentZoom + delta)
+            );
+            slider.value = newVal;
+            applyZoom(newVal);
+        }
+    </script>
+</body>
+</html>
