@@ -162,12 +162,19 @@
         // ==========================================
         // URLパラメータ取得
         // ==========================================
+        // ==========================================
+        // ★ GWSドメインを設定（大学のドメインに変更）
+        // 例: 'u-hyogo.ac.jp'
+        // ==========================================
+        const GAS_DOMAIN = 'guh.u-hyogo.ac.jp';
+        const GAS_BASE_URL = 'https://script.google.com/a/macros/' + GAS_DOMAIN + '/s/';
+
         const _params = new URLSearchParams(window.location.search);
-        const gasUrl    = _params.get('gas');
-        const sheetId   = _params.get('sheet');
+        const deployId  = _params.get('d');
+        const sheetCode = _params.get('s');
 
         // 必須パラメータチェック
-        if (!gasUrl || !sheetId) {
+        if (!deployId || !sheetCode) {
             document.querySelector('.container').innerHTML = `
                 <div style="font-size:3em;margin-bottom:20px;">⚠️</div>
                 <div style="font-size:1.8em;color:#721c24;margin-bottom:15px;font-weight:bold;">URLが正しくありません</div>
@@ -176,6 +183,9 @@
                     このページに直接アクセスしても動作しません。
                 </div>`;
         }
+
+        // GAS exec URL を再構成
+        const gasUrl = GAS_BASE_URL + deployId + '/exec';
 
         // ==========================================
         // カメラ関連変数
@@ -268,11 +278,9 @@
 
             // GASのdoGet()へ遷移
             // GAS側でscan=1を受け取り、scan_result.htmlを返す
-            const redirectUrl = gasUrl
-                + (gasUrl.includes('?') ? '&' : '?')
-                + 'scan=1'
-                + '&id='    + encodeURIComponent(decodedText)
-                + '&sheet=' + encodeURIComponent(sheetId);
+            const redirectUrl = gasUrl + '?scan=1'
+                + '&id=' + encodeURIComponent(decodedText)
+                + '&s='  + encodeURIComponent(sheetCode);
 
             setTimeout(function() {
                 window.location.href = redirectUrl;
