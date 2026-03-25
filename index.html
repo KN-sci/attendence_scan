@@ -134,19 +134,19 @@
         <div class="section">
             <h2>🔗 学生配布用URLを生成</h2>
 
-            <label for="gasUrlInput">GAS デプロイURL</label>
-            <div class="hint">GASの「デプロイを管理」→「ウェブアプリURL」（/exec で終わるURL）</div>
-            <input type="text" id="gasUrlInput"
-                placeholder="https://script.google.com/a/macros/.../exec">
+            <label for="gasUrlInput">GAS デプロイID</label>
+            <div class="hint">GASのウェブアプリURL中の <code>/s/</code> と <code>/exec</code> の間の文字列、またはURL全体を貼ると自動抽出</div>
+            <input type="text" id="gasUrlInput" oninput="autoExtractDeployId(this)"
+                placeholder="AKfycb... またはURL全体">
+            <div id="deployIdExtracted" style="display:none; margin-top:6px; font-size:0.95em; color:#155724; background:#d4edda; border-radius:6px; padding:6px 10px;"></div>
 
             <div style="margin-top: 20px;">
-                <label for="sheetIdInput">スプレッドシートURL または ID</label>
-                <div class="hint">スプレッドシートのURLをそのまま貼り付けるか、IDだけを入力してください</div>
-                <input type="text" id="sheetIdInput"
-                    placeholder="https://docs.google.com/spreadsheets/d/... または ID のみ"
-                    oninput="autoExtractSheetId(this)">
-                <div id="sheetIdExtracted" style="display:none; margin-top:6px; font-size:0.95em; color:#155724; background:#d4edda; border-radius:6px; padding:6px 10px;"></div>
+                <label for="sheetCodeInput">シート短縮コード</label>
+                <div class="hint">admin.htmlの「学生用URL」で表示されるコード（6文字）</div>
+                <input type="text" id="sheetCodeInput" maxlength="10"
+                    placeholder="abc123">
             </div>
+
 
             <button class="btn-generate" onclick="generateUrl()">🔗 URLを生成</button>
 
@@ -180,47 +180,40 @@
 
         let generatedUrlValue = '';
 
-        // スプレッドシートURLからIDを自動抽出
-        function autoExtractSheetId(input) {
+        function autoExtractDeployId(input) {
             const val = input.value.trim();
-            const match = val.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
-            const extracted = document.getElementById('sheetIdExtracted');
+            const match = val.match(/\/s\/([^\/]+)\/exec/);
+            const el = document.getElementById('deployIdExtracted');
             if (match) {
-                extracted.textContent = '✅ ID抽出: ' + match[1];
-                extracted.style.display = 'block';
+                el.textContent = '✅ デプロイID抽出: ' + match[1];
+                el.style.display = 'block';
             } else {
-                extracted.style.display = 'none';
+                el.style.display = 'none';
             }
         }
 
-        // 入力値からIDのみを取り出す（URL全体でもIDのみでも対応）
-        function resolveSheetId(raw) {
-            const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+        function resolveDeployId(raw) {
+            const match = raw.match(/\/s\/([^\/]+)\/exec/);
             return match ? match[1] : raw;
         }
 
         function generateUrl() {
-            const gasUrl  = document.getElementById('gasUrlInput').value.trim();
-            const sheetId = resolveSheetId(document.getElementById('sheetIdInput').value.trim());
+            const deployId  = resolveDeployId(document.getElementById('gasUrlInput').value.trim());
+            const sheetCode = document.getElementById('sheetCodeInput').value.trim();
 
-            if (!gasUrl) {
-                alert('GAS デプロイURLを入力してください');
+            if (!deployId) {
+                alert('GAS デプロイIDを入力してください');
                 document.getElementById('gasUrlInput').focus();
                 return;
             }
-            if (!sheetId) {
-                alert('スプレッドシートのURLまたはIDを入力してください');
-                document.getElementById('sheetIdInput').focus();
-                return;
-            }
-            if (!gasUrl.startsWith('https://script.google.com')) {
-                alert('GAS URLは https://script.google.com で始まる必要があります');
+            if (!sheetCode) {
+                alert('シート短縮コードを入力してください');
+                document.getElementById('sheetCodeInput').focus();
                 return;
             }
 
-            generatedUrlValue = BASE_URL
-                + '?gas='   + encodeURIComponent(gasUrl)
-                + '&sheet=' + encodeURIComponent(sheetId);
+            generatedUrlValue = BASE_URL + '?d=' + encodeURIComponent(deployId)
+                                         + '&s=' + encodeURIComponent(sheetCode);
 
             document.getElementById('generatedUrl').textContent = generatedUrlValue;
             document.getElementById('resultBox').style.display = 'block';
