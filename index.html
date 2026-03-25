@@ -140,10 +140,12 @@
                 placeholder="https://script.google.com/a/macros/.../exec">
 
             <div style="margin-top: 20px;">
-                <label for="sheetIdInput">スプレッドシートID</label>
-                <div class="hint">スプレッドシートのURLの /d/ と /edit の間の文字列</div>
+                <label for="sheetIdInput">スプレッドシートURL または ID</label>
+                <div class="hint">スプレッドシートのURLをそのまま貼り付けるか、IDだけを入力してください</div>
                 <input type="text" id="sheetIdInput"
-                    placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms">
+                    placeholder="https://docs.google.com/spreadsheets/d/... または ID のみ"
+                    oninput="autoExtractSheetId(this)">
+                <div id="sheetIdExtracted" style="display:none; margin-top:6px; font-size:0.95em; color:#155724; background:#d4edda; border-radius:6px; padding:6px 10px;"></div>
             </div>
 
             <button class="btn-generate" onclick="generateUrl()">🔗 URLを生成</button>
@@ -178,9 +180,28 @@
 
         let generatedUrlValue = '';
 
+        // スプレッドシートURLからIDを自動抽出
+        function autoExtractSheetId(input) {
+            const val = input.value.trim();
+            const match = val.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+            const extracted = document.getElementById('sheetIdExtracted');
+            if (match) {
+                extracted.textContent = '✅ ID抽出: ' + match[1];
+                extracted.style.display = 'block';
+            } else {
+                extracted.style.display = 'none';
+            }
+        }
+
+        // 入力値からIDのみを取り出す（URL全体でもIDのみでも対応）
+        function resolveSheetId(raw) {
+            const match = raw.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
+            return match ? match[1] : raw;
+        }
+
         function generateUrl() {
             const gasUrl  = document.getElementById('gasUrlInput').value.trim();
-            const sheetId = document.getElementById('sheetIdInput').value.trim();
+            const sheetId = resolveSheetId(document.getElementById('sheetIdInput').value.trim());
 
             if (!gasUrl) {
                 alert('GAS デプロイURLを入力してください');
@@ -188,7 +209,7 @@
                 return;
             }
             if (!sheetId) {
-                alert('スプレッドシートIDを入力してください');
+                alert('スプレッドシートのURLまたはIDを入力してください');
                 document.getElementById('sheetIdInput').focus();
                 return;
             }
