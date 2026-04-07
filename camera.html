@@ -46,6 +46,7 @@
         .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .status.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
+        /* iOS fallback: getUserMedia がユーザー操作なしで失敗した場合のみ表示 */
         .btn-start {
             font-size: 1.4em; padding: 16px 30px;
             background: linear-gradient(135deg, #28a745, #1e7e34);
@@ -123,8 +124,9 @@
 
         <div id="statusMessage"></div>
 
-        <div id="startCameraContainer" style="margin: 20px 0;">
-            <button class="btn-start" onclick="startScanner()">📷 カメラを起動</button>
+        <!-- iOS fallback: 自動起動失敗時のみ表示 -->
+        <div id="startCameraContainer" style="display: none; margin: 20px 0;">
+            <button class="btn-start" onclick="startScanner()">📷 タップしてカメラを起動</button>
         </div>
 
         <div id="reader"></div>
@@ -149,8 +151,7 @@
         <div class="instruction">
             <h3>📋 使い方</h3>
             <ol>
-                <li>「カメラを起動」をタップ</li>
-                <li>カメラの使用を許可</li>
+                <li>カメラの使用を許可（初回のみ）</li>
                 <li>QRコードにカメラを向ける</li>
                 <li>自動で読み取り・出席登録へ進みます</li>
             </ol>
@@ -253,14 +254,27 @@
                     document.getElementById('cameraSwitchContainer').style.display = 'block';
                     tryGetZoomCapabilities();
                 }).catch(function(err) {
-                    showStatus('カメラの起動に失敗しました: ' + err, 'error');
+                    // iOS Safari 等でユーザー操作なしの自動起動が拒否された場合のフォールバック
+                    showStatus('カメラを起動するにはタップしてください', 'loading');
                     document.getElementById('startCameraContainer').style.display = 'block';
                 });
             }).catch(function(err) {
+                // カメラ権限が拒否された場合
                 showStatus('カメラへのアクセスが拒否されました', 'error');
                 document.getElementById('startCameraContainer').style.display = 'block';
             });
         }
+
+        // ==========================================
+        // ページロード時に自動起動
+        // Android Chrome: 権限許可済みなら自動起動される
+        // iOS Safari: getUserMedia にユーザー操作が必要なため失敗 → fallback ボタン表示
+        // ==========================================
+        window.addEventListener('load', function() {
+            if (deployId && sheetCode) {
+                startScanner();
+            }
+        });
 
         // ==========================================
         // QRコード読み取り成功 → GASへ遷移
