@@ -214,6 +214,13 @@
             document.getElementById('startCameraContainer').style.display = 'none';
             showStatus('カメラを起動中...', 'loading');
 
+            // 前回の失敗状態をクリア（自動起動失敗後のリトライ時に必要）
+            if (html5QrCode) {
+                try { html5QrCode.clear(); } catch(e) {}
+                html5QrCode = null;
+            }
+            document.getElementById('reader').innerHTML = '';
+
             html5QrCode = new Html5Qrcode('reader');
 
             Html5Qrcode.getCameras().then(function(cameras) {
