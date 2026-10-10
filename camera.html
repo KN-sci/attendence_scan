@@ -211,6 +211,13 @@
         // スキャナー起動
         // ==========================================
         function startScanner() {
+            // ライブラリ読み込みチェック
+            if (typeof Html5Qrcode === 'undefined') {
+                showStatus('ライブラリ読み込み失敗。ページを再読み込みしてください。', 'error');
+                document.getElementById('startCameraContainer').style.display = 'block';
+                return;
+            }
+
             document.getElementById('startCameraContainer').style.display = 'none';
             showStatus('カメラを起動中...', 'loading');
 
@@ -247,8 +254,8 @@
                 tryGetZoomCapabilities();
             }).catch(function(err) {
                 console.error('Camera start error:', err);
-                // iOS Safari 等でユーザー操作なしの自動起動が拒否された場合のフォールバック
-                showStatus('カメラを起動するにはタップしてください', 'loading');
+                const errMsg = (err && err.message) ? err.message : String(err);
+                showStatus('カメラ起動失敗: ' + errMsg, 'error');
                 document.getElementById('startCameraContainer').style.display = 'block';
             });
         }
