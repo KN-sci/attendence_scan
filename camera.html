@@ -216,6 +216,7 @@
 
             // 前回の失敗状態をクリア（自動起動失敗後のリトライ時に必要）
             if (html5QrCode) {
+                try { html5QrCode.stop(); } catch(e) {}
                 try { html5QrCode.clear(); } catch(e) {}
                 html5QrCode = null;
             }
@@ -223,51 +224,31 @@
 
             html5QrCode = new Html5Qrcode('reader');
 
-            Html5Qrcode.getCameras().then(function(cameras) {
-                if (!cameras || cameras.length === 0) {
-                    showStatus('カメラが見つかりませんでした', 'error');
-                    document.getElementById('startCameraContainer').style.display = 'block';
-                    return;
-                }
+            // getCameras() を使わず facingMode で直接起動
+            // Chrome 130+ Android で getCameras() の内部 getUserMedia → close → 再 open が
+            // 競合して失敗するケースへの対処
+            const config = {
+                fps: 10,
+                qrbox: function(w, h) {
+                    const s = Math.min(w, h) * 0.7;
+                    return { width: s, height: s };
+                },
+                aspectRatio: 1.0
+            };
 
-                // 背面カメラ優先
-                let cameraId = cameras[cameras.length - 1].id;
-                for (let c of cameras) {
-                    if (c.label && c.label.toLowerCase().includes('back')) {
-                        cameraId = c.id; break;
-                    }
-                }
-
-                const config = {
-                    fps: 10,
-                    qrbox: function(w, h) {
-                        const s = Math.min(w, h) * 0.7;
-                        return { width: s, height: s };
-                    },
-                    aspectRatio: 1.0,
-                    videoConstraints: {
-                        deviceId: cameraId,
-                        facingMode: currentFacingMode
-                    }
-                };
-
-                html5QrCode.start(
-                    { facingMode: currentFacingMode },
-                    config,
-                    onQrSuccess,
-                    function() {} // スキャン中のエラーは無視
-                ).then(function() {
-                    showStatus('QRコードをカメラに向けてください', 'loading');
-                    document.getElementById('cameraSwitchContainer').style.display = 'block';
-                    tryGetZoomCapabilities();
-                }).catch(function(err) {
-                    // iOS Safari 等でユーザー操作なしの自動起動が拒否された場合のフォールバック
-                    showStatus('カメラを起動するにはタップしてください', 'loading');
-                    document.getElementById('startCameraContainer').style.display = 'block';
-                });
+            html5QrCode.start(
+                { facingMode: currentFacingMode },
+                config,
+                onQrSuccess,
+                function() {} // スキャン中のエラーは無視
+            ).then(function() {
+                showStatus('QRコードをカメラに向けてください', 'loading');
+                document.getElementById('cameraSwitchContainer').style.display = 'block';
+                tryGetZoomCapabilities();
             }).catch(function(err) {
-                // カメラ権限が拒否された場合
-                showStatus('カメラへのアクセスが拒否されました', 'error');
+                console.error('Camera start error:', err);
+                // iOS Safari 等でユーザー操作なしの自動起動が拒否された場合のフォールバック
+                showStatus('カメラを起動するにはタップしてください', 'loading');
                 document.getElementById('startCameraContainer').style.display = 'block';
             });
         }
